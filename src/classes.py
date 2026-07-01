@@ -1,6 +1,6 @@
 import json
 from pydantic import BaseModel, Field, ValidationError
-from typing import Dict, Literal
+from typing import Dict, Literal, Any
 
 
 class TypeDetails(BaseModel):
@@ -11,13 +11,20 @@ class FunctionDefinition(BaseModel):
     model_config = {"extra":"forbid"}
     name: str = Field(max_length=50, min_length=1)
     description: str = Field(max_length=100, min_length=1)
-    parameters: Dict[str, TypeDetails]
+    parameters: Dict[str, Any]
     returns: TypeDetails
 
 
 class FunctionCalling(BaseModel):
     model_config = {"extra":"forbid"}
     prompt: str = Field(min_length=1)
+
+
+class FunctionOutput(BaseModel):
+    name: str
+    description: str
+    parameters: Dict[str, Any]
+    returns: Dict[str, Any]
 
 
 def load_definitions(file_path: str) -> list:
@@ -41,7 +48,7 @@ def load_calling(file_path: str) -> list:
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             x = json.load(f)
-            if x:  # Handle case where JSON is just 'null' or file is empty
+            if x:
                 if (isinstance(x, list)):
                     for line in x:
                         file.append(FunctionCalling(**line))
@@ -55,9 +62,3 @@ def load_calling(file_path: str) -> list:
         print(f"[ERORR - PARSING]: File not found!")
     
     return file
-
-
-if __name__ == "__main__":
-    file = load_definitions("data/input/functions_definition.json")
-    function_names = [def_.name for def_ in file]
-    print(function_names)

@@ -20,11 +20,13 @@ def parse(arg: list[str]) -> Tuple[List[FunctionDefinition], List[FunctionCallin
             fn_call = load_calling(arg[i + 1])
         else:
             fn_call = load_calling("data/input/function_calling_tests.json")
+            
         if "--output" in arg:
             i = arg.index("--output")
             print(f"output def: {arg[i + 1]}")
         else:
-            exit()
+            print("[PARSER INFO]: Nebyl specifikován --output. Skript pokračuje a vypíše výsledek do konzole.")
+            
     except ValueError as e:
         print(f"[PARSER - ERROR]: {e}", file=sys.stderr)
 
