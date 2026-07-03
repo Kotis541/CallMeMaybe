@@ -70,18 +70,11 @@ class JSONStateMachine:
             self.progress = ""
         
         elif self.state == State.PARAMS_KEY and self.progress == self.target:
-            for func_name in self.function:
-                self.target = f'"{func_name.parameters}": '
             self.state = State.PARAM_KEY_NAME
             self.progress = ""
         
-        elif self.state == State.PARAM_KEY_NAME and self.progress == self.target:
+        elif self.state == State.PARAM_KEY_NAME:
             self.state = State.PARAM_VALUE
-            param_name = self.param_keys_to_generate.pop(0)
-            param_info = self.selected_function.parameters[param_name]
-            param_type = param_info['type']
-            self.current_param_type = param_type
-            print(self.current_param_type)
             self.target = ""
             self.progress = ""
         
@@ -101,7 +94,10 @@ class JSONStateMachine:
             self.state = State.FINISHING
             self.target = "]\n"
             self.progress = ""
-        
+
+        elif "]" in self.progress:
+            self.state = State.END
+
         elif self.state == State.FINISHING and self.progress == self.target:
             self.state = State.END
     
@@ -155,16 +151,15 @@ class JSONStateMachine:
         elif self.state == State.PARAMS_KEY:
             return self.allow_target(vocab, text, '\t  "parameters": {')
         
-        elif self.state == State.PARAM_KEY_NAME:
-            for func_name in self.function:
-                if func_name.name == self.selected_function.name:
-                    target = f'"{self.param_keys_to_generate[0]}": '
-            return self.allow_target(vocab, text, target)
+        # elif self.state == State.PARAM_KEY_NAME:
+        #     for func_name in self.function:
+        #         if func_name.name == self.selected_function.name:
+        #             target = f'"{self.param_keys_to_generate[0]}": '
+        #     return self.allow_target(vocab, text, target)
 
         elif self.state == State.PARAM_VALUE:
             if self.current_param_type == "number":
-                target = "0123456789"
-            return self.allow_target(vocab, text, target)
+                return self.allow_target(vocab, text, target)
             
 
         elif self.state == State.END:

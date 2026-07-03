@@ -43,6 +43,5 @@ def main():
             print(token_text, end="", flush=True)
             text += token_text
 
-
 if __name__ == "__main__":
     main()

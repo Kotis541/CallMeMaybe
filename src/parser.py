@@ -24,8 +24,6 @@ def parse(arg: list[str]) -> Tuple[List[FunctionDefinition], List[FunctionCallin
         if "--output" in arg:
             i = arg.index("--output")
             print(f"output def: {arg[i + 1]}")
-        else:
-            print("[PARSER INFO]: Nebyl specifikován --output. Skript pokračuje a vypíše výsledek do konzole.")
             
     except ValueError as e:
         print(f"[PARSER - ERROR]: {e}", file=sys.stderr)
