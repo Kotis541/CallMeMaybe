@@ -21,10 +21,9 @@ class FunctionCalling(BaseModel):
 
 
 class FunctionOutput(BaseModel):
+    prompt: str
     name: str
-    description: str
     parameters: Dict[str, Any]
-    returns: Dict[str, Any]
 
 
 def load_definitions(file_path: str) -> list:
@@ -32,7 +31,7 @@ def load_definitions(file_path: str) -> list:
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             x = json.load(f)
-            if x:  # Handle case where JSON is just 'null' or file is empty
+            if x:
                 for line in x:
                     file.append(FunctionDefinition(**line))
     except ValidationError as e:
@@ -62,3 +61,16 @@ def load_calling(file_path: str) -> list:
         print(f"[ERORR - PARSING]: File not found!")
     
     return file
+
+def load_output(filepath: str) -> list:
+    try:
+        with open(filepath, 'r') as f:
+            x = json.load(f)
+            if x:
+                for line in x:
+                    FunctionOutput(**line)
+    except ValidationError as e:
+        print(f"[ERROR - OUTPUT]: {e.errors()[0]['msg']}")
+    except FileNotFoundError as e:
+        print(f"[ERROR - OUTPUT]: Output file not found!")
+        

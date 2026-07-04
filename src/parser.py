@@ -1,6 +1,7 @@
 from src.classes import FunctionCalling, FunctionDefinition, load_definitions, load_calling
 from typing import List, Tuple
 import sys
+from pathlib import Path
 
 def parse(arg: list[str]) -> Tuple[List[FunctionDefinition], List[FunctionCalling]]:
     fn_def: List[FunctionDefinition] = []
@@ -23,9 +24,17 @@ def parse(arg: list[str]) -> Tuple[List[FunctionDefinition], List[FunctionCallin
             
         if "--output" in arg:
             i = arg.index("--output")
-            print(f"output def: {arg[i + 1]}")
+            file_path = Path(arg[i + 1])
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with file_path.open('w') as file:
+                file.close()
+        else:
+            file_path = Path("data/output/function_calling_results.json")
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with file_path.open('w') as file:
+                file.close()
             
     except ValueError as e:
         print(f"[PARSER - ERROR]: {e}", file=sys.stderr)
 
-    return fn_def, fn_call
+    return fn_def, fn_call, file_path
