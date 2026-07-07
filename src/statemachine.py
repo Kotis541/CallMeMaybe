@@ -61,7 +61,7 @@ class JSONStateMachine:
             if self.progress == self.target:
                 if len(self.param_keys_to_generate) > 0:
                     param = self.param_keys_to_generate.pop(0)
-                    self.current_param_type = self.selected_function.parameters[param].get("type", "string")
+                    self.current_param_type = self.selected_function.parameters[param].type
                     quote = '"' if self.current_param_type == "string" else ''
                     self.state = State.PARAM_KEY
                     self.target = f'\n    "{param}": {quote}'
@@ -77,41 +77,24 @@ class JSONStateMachine:
                 self.progress = ""
         
         elif self.state == State.PARAM_VALUE:
-            # This is the robust fix: check the entire accumulated progress, not just the last token.
-            clean_progress = self.progress.strip()
             is_done = False
             delim_used = ""
             is_last = (len(self.param_keys_to_generate) == 0)
             
-
-            if self.current_param_type == "string":
-                if '"' in token_text:
-                # A string is done if it's fully wrapped in quotes.
-                if clean_progress.startswith('"') and clean_progress.endswith('"') and len(clean_progress) > 1:
+            expected_delims = ['"'] if self.current_param_type == "string" else (["}"] if is_last else [","])
+            for d in expected_delims:
+                if d in token_text:
                     is_done = True
-                    delim_used = '"'
-            else:
-                expected_delims = ["}"] if is_last else [","]
-                for d in expected_delims:
-                    if d in token_text:
-                        is_done = True
-                        delim_used = d
-                        break
-            else: # For numbers or booleans
-                # They are done if a delimiter appears after them.
-                if clean_progress.endswith(',') or clean_progress.endswith('}'):
-                    is_done = True
+                    delim_used = d
+                    break
 
             if is_done:
                 idx = token_text.index(delim_used)
                 overlap = token_text[idx+1:]
 
                 if not is_last:
-                # The value is complete. Now, transition cleanly.
-                if len(self.param_keys_to_generate) > 0:
-                    # There are more parameters to process.
                     param = self.param_keys_to_generate.pop(0)
-                    self.current_param_type = self.selected_function.parameters[param].get("type", "string")
+                    self.current_param_type = self.selected_function.parameters[param].type
                     quote = '"' if self.current_param_type == "string" else ''
                     self.state = State.PARAM_KEY
                     
@@ -121,33 +104,27 @@ class JSONStateMachine:
                         self.target = f',\n    "{param}": {quote}'
                         
                     self.progress = overlap
-                    self.target = f',\n    "{param}": {quote}' # Note the comma for separation
-                    self.progress = "" # Reset progress for the new key
                 else:
-                    # This was the last parameter.
                     self.state = State.CLOSE_BRACE
                     if delim_used == "}":
                         self.target = "\n}"
                     else:
                         self.target = "\n  }\n}"
                     self.progress = overlap
-                    self.target = "\n  }\n}"
-                    self.progress = ""
         
         elif self.state == State.CLOSE_BRACE:
             if self.progress == self.target:
                 self.state = State.END
     
     def allow_target(self, vocab: dict, progress: str, target_txt: str) -> List[int]:
-        if not target_txt.startswith(progress):
-            writed = ""
-            for i in range(len(target_txt), 0, -1):
-                if progress.endswith(target_txt[:i]):
-                    writed = target_txt[:i]
-                    break
-            remaining = target_txt[len(writed):]
-        else:
+        overlap = 0
+        if target_txt.startswith(progress):
             remaining = target_txt[len(progress):]
+        else:
+            for i in range(1, min(len(progress), len(target_txt)) + 1):
+                if progress[-i:] == target_txt[:i]:
+                    overlap = i
+            remaining = target_txt[overlap:]
 
         if not remaining:
             return []
@@ -158,7 +135,19 @@ class JSONStateMachine:
             if remaining.startswith(token_text):
                 allowed.append(int(token_id))
         
-        return allowed
+        if not allowed:
+            for token_id, token_text in vocab.items():
+                if not token_text: continue
+                if remaining.startswith(token_text.lstrip()) and len(token_text.lstrip()) > 0:
+                    allowed.append(int(token_id))
+
+        if not allowed:
+            next_char = remaining[0]
+            for token_id, token_text in vocab.items():
+                if token_text and token_text.startswith(next_char):
+                    allowed.append(int(token_id))
+
+        return list(set(allowed))
 
     def get_allowed_tokens(self, vocab: dict, text: str) -> List[int]:
         if self.state in [State.START, State.PROMPT_VALUE, State.NAME_KEY, State.PARAMS_KEY, State.PARAM_KEY, State.CLOSE_BRACE]:
@@ -177,10 +166,11 @@ class JSONStateMachine:
             end_tokens = ['"'] if self.current_param_type == "string" else (["}"] if is_last else [","])
 
             has_char = len(self.progress.strip()) > 0
-            has_digit = any(c.isdigit() for c in self.progress)
+            
             force_end = False
-
-            if self.current_param_type != "string" and len(self.progress) > 3:
+            if self.current_param_type == "string" and len(self.progress) > 50:
+                force_end = True
+            elif self.current_param_type != "string" and len(self.progress) > 10:
                 force_end = True
 
             for token_id, token_text in vocab.items():
@@ -188,58 +178,55 @@ class JSONStateMachine:
                 
                 if self.current_param_type == "string":
                     forbidden = "{}[%$\\|<>\n"
+                    
                     if '"' in token_text:
                         idx = token_text.index('"')
                         prefix = token_text[:idx]
-                        if has_char or len(prefix.strip()) > 0:
-                            allowed.append(int(token_id))
-                    elif not any(c in forbidden for c in token_text):
+                        suffix = token_text[idx+1:]
+                        
+                        # ZÁKAZ ODPADU: Za uvozovkou smí být jen mezery nebo entery (bezpečné znaky)
+                        if not all(c in " \n\r\t," for c in suffix):
+                            continue
+
+                        if force_end:
+                            if not any(c in forbidden for c in prefix):
+                                allowed.append(int(token_id))
+                        else:
+                            if has_char or len(prefix.strip()) > 0:
+                                if not any(c in forbidden for c in prefix):
+                                    allowed.append(int(token_id))
+                    elif not force_end and not any(c in forbidden for c in token_text):
                         allowed.append(int(token_id))
                 else:
                     valid_chars = set("0123456789.-e truefals")
-                    if force_end:
-                        for delim in end_tokens:
-                            if delim in token_text:
-                                idx = token_text.index(delim)
-                                prefix = token_text[:idx]
-                                if all(c in valid_chars for c in prefix):
-                                    allowed.append(int(token_id))
-                                break
-                        continue
-
-            # Simplified and more robust logic for allowed tokens.
-            if self.current_param_type == "string":
-                # If we haven't started the string, we must force a quote.
-                if not self.progress.strip():
-                    return [id for id, tok in vocab.items() if tok == '"']
-                # Once started, allow almost anything. The 'move' logic will find the end.
-                return list(vocab.keys())
-            else: # For numbers/booleans
-                # Allow digits, relevant characters, and the delimiters.
-                valid_chars = set("0123456789.-e,}\n\t ")
-                allowed = []
-                for token_id, token_text in vocab.items():
-                    if not token_text: continue
-                    if all(c in valid_chars for c in token_text):
-                        allowed.append(int(token_id))
-                        continue
-                return allowed
-
+                    is_ending_token = False
+                    
                     for delim in end_tokens:
                         if delim in token_text:
                             idx = token_text.index(delim)
                             prefix = token_text[:idx]
+                            suffix = token_text[idx+len(delim):]
+                            
+                            # ZÁKAZ ODPADU: Nesmí tam být garbage jako `!` nebo `"`
+                            if not all(c in " \n\r\t" for c in suffix):
+                                continue
+                                
                             if all(c in valid_chars for c in prefix):
-                                if has_char or any(c.isalnum() for c in prefix):
+                                if force_end or has_char or any(c.isalnum() for c in prefix):
                                     allowed.append(int(token_id))
+                                    is_ending_token = True
                             break
-
+                    
+                    if not force_end and not is_ending_token:
+                        if all(c in valid_chars for c in token_text):
+                            allowed.append(int(token_id))
+            
             if not allowed and force_end:
                 for token_id, token_text in vocab.items():
                     if token_text == end_tokens[0]:
                         allowed.append(int(token_id))
                         break
-            
+
             return list(set(allowed))
 
         elif self.state == State.END:

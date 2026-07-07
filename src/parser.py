@@ -33,7 +33,8 @@ def parse(arg: list[str]) -> Tuple[List[FunctionDefinition], List[FunctionCallin
             file_path.parent.mkdir(parents=True, exist_ok=True)
             with file_path.open('w') as file:
                 file.close()
-            
+        if fn_call == [] or fn_def == []:
+            exit()
     except ValueError as e:
         print(f"[PARSER - ERROR]: {e}", file=sys.stderr)
 

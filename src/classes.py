@@ -11,7 +11,7 @@ class FunctionDefinition(BaseModel):
     model_config = {"extra":"forbid"}
     name: str = Field(max_length=50, min_length=1)
     description: str = Field(max_length=100, min_length=1)
-    parameters: Dict[str, Any]
+    parameters: Dict[str, TypeDetails]
     returns: TypeDetails
 
 
@@ -40,6 +40,7 @@ def load_definitions(file_path: str) -> list:
         print(f"[ERROR - PARSING]: Invalid JSON in file {file_path}. It might be empty.")
     except FileNotFoundError as e:
         print(f"[ERORR - PARSING]: File not found!")
+
     return file
 
 def load_calling(file_path: str) -> list:
@@ -54,7 +55,7 @@ def load_calling(file_path: str) -> list:
                 else:
                     file.append(FunctionCalling(**x))
     except ValidationError as e:
-        print(f"[ERROR - PARSING CALL]: {e.errors()[0]['msg']}")
+        print(f"[ERROR - PARSING]: {e.errors()[0]['msg']}")
     except json.JSONDecodeError:
         print(f"[ERROR - PARSING]: Invalid JSON in file {file_path}. It might be empty.")
     except FileNotFoundError as e:

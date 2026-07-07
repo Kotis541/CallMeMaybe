@@ -10,7 +10,7 @@ debug:
 	python -m pdb main.py
 
 clean:
-	rm -rf __pycache__ 
+	rm -rf src/__pycache__ llm_sdk/llm_sdk/__pycache__*
 
 lint:
 	flake8 .
