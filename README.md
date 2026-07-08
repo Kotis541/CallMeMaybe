@@ -56,6 +56,10 @@ To run the strict type-checker and linter (verifying PEP 8 compliance and static
 ```bash
 make lint
 ```
+To run pytest type:
+```bash
+make test
+```
 
 ## Example usage
 **Input Prompt:**

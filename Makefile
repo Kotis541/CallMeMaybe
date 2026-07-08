@@ -1,9 +1,10 @@
 UV_CACHE = /sgoinfre/$(USER)/.uv_cache
 
-.PHONY: install run debug clean lint
+.PHONY: install run debug clean lint test
 
 install:
-	UV_CACHE_DIR=$(UV_CACHE) uv sync
+	export UV_CACHE_DIR=$(UV_CACHE)
+	uv sync
 
 run:
 	uv run python -m src
@@ -18,3 +19,6 @@ clean:
 lint:
 	flake8  src/* test_statemachine.py
 	mypy src/* --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+
+test:
+	uv run python -m pytest

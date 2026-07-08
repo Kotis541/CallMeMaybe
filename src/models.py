@@ -2,13 +2,16 @@ import json
 from pydantic import BaseModel, Field, ValidationError
 from typing import Dict, Literal, Any, List
 from pathlib import Path
+import sys
 
 
 class TypeDetails(BaseModel):
+    """Represents the required type of a function parameter."""
     type: Literal["string", "number", "boolean", "integer"]
 
 
 class FunctionDefinition(BaseModel):
+    """Defines the schema of an available tool/function."""
     model_config = {"extra": "forbid"}
     name: str = Field(max_length=50, min_length=1)
     description: str = Field(max_length=100, min_length=1)
@@ -17,11 +20,13 @@ class FunctionDefinition(BaseModel):
 
 
 class FunctionCalling(BaseModel):
+    """Represents the input prompt for function calling."""
     model_config = {"extra": "forbid"}
     prompt: str = Field(min_length=1)
 
 
 class FunctionOutput(BaseModel):
+    """Represents the expected output format after constrained decoding."""
     prompt: str
     name: str
     parameters: Dict[str, Any]
@@ -38,10 +43,13 @@ def load_definitions(file_path: str) -> List[FunctionDefinition]:
                     file.append(FunctionDefinition(**line))
     except ValidationError as e:
         print(f"[ERROR - PARSING DEF]: {e.errors()[0]['msg']}")
+        sys.exit(1)
     except json.JSONDecodeError:
         print(f"[ERROR - PARSING]: Invalid JSON in file {file_path}.")
+        sys.exit(1)
     except FileNotFoundError:
         print("[ERORR - PARSING]: File not found!")
+        sys.exit(1)
 
     return file
 
@@ -60,10 +68,13 @@ def load_calling(file_path: str) -> List[FunctionCalling]:
                     file.append(FunctionCalling(**x))
     except ValidationError as e:
         print(f"[ERROR - PARSING]: {e.errors()[0]['msg']}")
+        sys.exit(1)
     except json.JSONDecodeError:
         print(f"[ERROR - PARSING]: Invalid JSON in file {file_path}.")
+        sys.exit(1)
     except FileNotFoundError:
         print("[ERORR - PARSING]: File not found!")
+        sys.exit(1)
 
     return file
 
@@ -78,5 +89,7 @@ def load_output(filepath: Path) -> None:
                     FunctionOutput(**line)
     except ValidationError as e:
         print(f"[ERROR - OUTPUT]: {e.errors()[0]['msg']}")
+        sys.exit(1)
     except FileNotFoundError:
         print("[ERROR - OUTPUT]: Output file not found!")
+        sys.exit(1)
