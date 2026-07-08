@@ -7,10 +7,10 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=2.0.2",
     "pydantic>=2.13.4",
-    "torch>=2.8.0",
-    "transformers>=4.57.6",
-    "llm-sdk",
     "flake8>=7.3.0",
+    "llm-sdk",
+    "mypy>=2.1.0",
+    "pytest>=9.1.1",
 ]
 
 [tool.uv.sources]
