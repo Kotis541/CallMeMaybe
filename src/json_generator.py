@@ -18,8 +18,8 @@ class State:
 class JSONStateMachine:
     """Initializes the state machine for JSON generation."""
 
-    _MAX_STRING_PARAM_LEN = 50
-    _MAX_OTHER_PARAM_LEN = 10
+    _MAX_STRING_PARAM_LEN = 25
+    _MAX_OTHER_PARAM_LEN = 15
     _FORBIDDEN_CHARS_IN_STRING = frozenset("{}[%$\\|<>\n")
     _VALID_CHARS_IN_OTHER = frozenset("0123456789.-e truefals")
 

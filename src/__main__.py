@@ -9,6 +9,10 @@ from .json_generator import JSONStateMachine, State
 from .models import load_output
 from typing import Dict
 
+DETERMINISTIC_STATES = {
+    State.START, State.PROMPT_VALUE, State.NAME_KEY,
+    State.PARAMS_KEY, State.PARAM_KEY, State.CLOSE_BRACE,
+}
 
 def load_vocabulary(model: Small_LLM_Model) -> Dict[int, str]:
     """Loads and decodes the vocabulary from the model's vocab file."""
@@ -28,7 +32,6 @@ def main() -> None:
     model = Small_LLM_Model()
     fn_defs, fn_calls, filepath = parse(sys.argv)
     vocab = load_vocabulary(model)
-
     fn_defs_for_prompt = [f.model_dump(exclude={'returns'}) for f in fn_defs]
     fn_defs_str = json.dumps(fn_defs_for_prompt, indent=2)
 
@@ -40,8 +43,14 @@ def main() -> None:
         text = ""
 
         while machine.state != State.END:
-            context = "Available tools:\n" + fn_defs_str + "\n\nTask: " \
-                  + call.prompt + "\n\nOutput:\n" + text
+            if machine.state in DETERMINISTIC_STATES:
+                remaining = machine.target[len(machine.progress):]
+                machine.move(remaining)
+                text += remaining
+                continue
+
+            context = ("Available tools:\n" + fn_defs_str + "\n\nTask: "
+                   + call.prompt + "\n\nOutput:\n" + text)
             input_ids = model.encode(context).tolist()[0]
             logits = np.array(model.get_logits_from_input_ids(input_ids))
             allowed_ids = machine.get_allowed_tokens(vocab, text)
@@ -76,8 +85,6 @@ def main() -> None:
 
             print(f"{C_PURPLE}--- Generated Output So Far ---{C_RESET}")
             print(f"{C_GREEN}{text}{C_RESET}")
-
-            time.sleep(0.05)
 
         cleaned_text = text.strip("[\n]")
         try:
